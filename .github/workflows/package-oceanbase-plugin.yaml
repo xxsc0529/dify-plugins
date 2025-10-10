@@ -1,0 +1,172 @@
+name: Package OceanBase Plugin
+
+on:
+  workflow_dispatch:  # 允许手动触发
+  push:
+    branches:
+      - test-oceanbase-ci  # 只在测试分支上触发
+    paths:
+      - '.github/workflows/package-oceanbase-plugin.yaml'  # 当此文件更新时触发
+
+env:
+  OCEANBASE_REPO: https://github.com/oceanbase/dify-plugin-oceanbase.git
+  PLUGIN_NAME: dify-plugin-oceanbase
+
+jobs:
+  package-oceanbase-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Current Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12.7
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Download Dify Plugin CLI
+        run: |
+          # 创建scripts目录
+          mkdir -p .scripts
+          
+          # 下载最新版本的dify-plugin CLI工具
+          # 根据操作系统和架构选择合适的版本
+          ARCH=$(uname -m)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          
+          if [ "$ARCH" = "x86_64" ]; then
+            ARCH="amd64"
+          elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+            ARCH="arm64"
+          fi
+          
+          if [ "$OS" = "linux" ]; then
+            OS="linux"
+          elif [ "$OS" = "darwin" ]; then
+            OS="darwin"
+          fi
+          
+          # 下载对应的二进制文件
+          BINARY_NAME="dify-plugin-${OS}-${ARCH}"
+          echo "Downloading $BINARY_NAME"
+          
+          # 使用GitHub API获取最新版本
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/langgenius/dify-plugin-daemon/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          echo "Latest version: $LATEST_VERSION"
+          
+          # 下载二进制文件
+          DOWNLOAD_URL="https://github.com/langgenius/dify-plugin-daemon/releases/download/${LATEST_VERSION}/${BINARY_NAME}"
+          echo "Download URL: $DOWNLOAD_URL"
+          
+          curl -L -o ".scripts/${BINARY_NAME}" "$DOWNLOAD_URL"
+          chmod +x ".scripts/${BINARY_NAME}"
+          
+          # 创建符号链接以便使用
+          ln -sf "${BINARY_NAME}" .scripts/dify
+          
+          echo "Dify CLI downloaded successfully"
+          .scripts/dify version
+
+      - name: Clone OceanBase Plugin Repository
+        run: |
+          # 创建临时目录
+          mkdir -p temp
+          
+          # 克隆OceanBase插件仓库
+          echo "Cloning OceanBase plugin repository..."
+          git clone ${{ env.OCEANBASE_REPO }} temp/${{ env.PLUGIN_NAME }}
+          
+          # 显示仓库信息
+          cd temp/${{ env.PLUGIN_NAME }}
+          echo "Repository cloned successfully"
+          echo "Current branch: $(git branch --show-current)"
+          echo "Latest commit: $(git log -1 --oneline)"
+          ls -la
+
+      - name: Package Plugin
+        run: |
+          # 进入插件目录
+          cd temp/${{ env.PLUGIN_NAME }}
+          
+          # 使用dify plugin命令打包插件
+          echo "Packaging plugin..."
+          ../../.scripts/dify plugin ./${{ env.PLUGIN_NAME }}
+          
+          # 检查打包结果
+          if [ -f "${{ env.PLUGIN_NAME }}.difypkg" ]; then
+            echo "Plugin packaged successfully!"
+            ls -la *.difypkg
+            echo "Package size: $(du -h *.difypkg | cut -f1)"
+          else
+            echo "Error: Plugin packaging failed!"
+            exit 1
+          fi
+
+      - name: Create OceanBase Directory
+        run: |
+          # 在当前仓库中创建oceanbase目录
+          mkdir -p oceanbase
+          
+          # 复制打包好的插件到oceanbase目录
+          cp temp/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.difypkg oceanbase/
+          
+          echo "Plugin copied to oceanbase directory"
+          ls -la oceanbase/
+
+      - name: Commit and Push Changes
+        run: |
+          # 配置git用户信息
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 检查是否有变更
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            # 添加变更
+            git add oceanbase/
+            
+            # 提交变更
+            git commit -m "feat: update OceanBase plugin package [skip ci]"
+            
+            # 推送到当前分支（测试分支）
+            CURRENT_BRANCH=$(git branch --show-current)
+            git push origin $CURRENT_BRANCH
+            echo "Changes pushed successfully to branch: $CURRENT_BRANCH"
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: oceanbase-plugin-package
+          path: oceanbase/*.difypkg
+          retention-days: 30
+
+      - name: Cleanup
+        run: |
+          # 清理临时文件
+          rm -rf temp
+          rm -rf .scripts
+          echo "Cleanup completed"
+
+      - name: Summary
+        run: |
+          echo "## OceanBase Plugin Packaging Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status**: Successfully packaged OceanBase plugin" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Package Location**: \`oceanbase/dify-plugin-oceanbase.difypkg\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🌿 **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔄 **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📅 **Timestamp**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
