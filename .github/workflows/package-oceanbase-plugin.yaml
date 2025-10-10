@@ -152,8 +152,8 @@ jobs:
       - name: Commit and Push Changes
         run: |
           # 配置git用户信息
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "xxsc0529@163.com"
+          git config --local user.name "xxsc0529"
           
           # 检查是否有变更
           if git diff --quiet; then
