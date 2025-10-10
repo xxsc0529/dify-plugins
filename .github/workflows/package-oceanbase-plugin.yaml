@@ -93,26 +93,23 @@ jobs:
 
       - name: Package Plugin
         run: |
-          # 进入插件目录
-          cd temp/${{ env.PLUGIN_NAME }}
+          # 显示插件目录内容
+          echo "Plugin directory contents:"
+          ls -la temp/${{ env.PLUGIN_NAME }}
           
-          # 显示当前目录内容
-          echo "Current directory contents:"
-          ls -la
-          
-          # 使用dify plugin package命令打包插件（当前目录就是插件目录）
+          # 使用dify plugin package命令打包插件（需要在插件目录外部执行）
           echo "Packaging plugin..."
-          ../../.scripts/dify plugin package .
+          .scripts/dify plugin package temp/${{ env.PLUGIN_NAME }}
           
           # 检查打包结果
-          if [ -f "${{ env.PLUGIN_NAME }}.difypkg" ]; then
+          if [ -f "temp/${{ env.PLUGIN_NAME }}.difypkg" ]; then
             echo "Plugin packaged successfully!"
-            ls -la *.difypkg
-            echo "Package size: $(du -h *.difypkg | cut -f1)"
+            ls -la temp/*.difypkg
+            echo "Package size: $(du -h temp/*.difypkg | cut -f1)"
           else
             echo "Error: Plugin packaging failed!"
-            echo "Available files in current directory:"
-            ls -la
+            echo "Available files in temp directory:"
+            ls -la temp/
             exit 1
           fi
 
@@ -122,7 +119,7 @@ jobs:
           mkdir -p oceanbase
           
           # 复制打包好的插件到oceanbase目录
-          cp temp/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.difypkg oceanbase/
+          cp temp/${{ env.PLUGIN_NAME }}.difypkg oceanbase/
           
           echo "Plugin copied to oceanbase directory"
           ls -la oceanbase/
