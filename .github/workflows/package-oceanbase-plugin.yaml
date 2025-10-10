@@ -27,10 +27,14 @@ jobs:
         with:
           python-version: 3.12.7
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests
+          
+          # 安装jq用于JSON解析
+          sudo apt-get update
+          sudo apt-get install -y jq
 
       - name: Download Dify Plugin CLI
         run: |
@@ -58,22 +62,41 @@ jobs:
           BINARY_NAME="dify-plugin-${OS}-${ARCH}"
           echo "Downloading $BINARY_NAME"
           
-          # 使用GitHub API获取最新版本
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/langgenius/dify-plugin-daemon/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          # 使用GitHub API获取最新版本，使用jq解析JSON
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/langgenius/dify-plugin-daemon/releases/latest | jq -r '.tag_name')
           echo "Latest version: $LATEST_VERSION"
+          
+          # 检查版本号是否为空
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            echo "Failed to get latest version, using fallback method"
+            # 使用gh命令作为备选方案
+            LATEST_VERSION=$(gh release list -R langgenius/dify-plugin-daemon --limit 1 --json tagName --jq '.[0].tagName')
+            echo "Fallback version: $LATEST_VERSION"
+          fi
+          
+          # 如果还是获取不到版本，使用一个已知的版本
+          if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+            LATEST_VERSION="v0.0.1b64"
+            echo "Using hardcoded version: $LATEST_VERSION"
+          fi
           
           # 下载二进制文件
           DOWNLOAD_URL="https://github.com/langgenius/dify-plugin-daemon/releases/download/${LATEST_VERSION}/${BINARY_NAME}"
           echo "Download URL: $DOWNLOAD_URL"
           
-          curl -L -o ".scripts/${BINARY_NAME}" "$DOWNLOAD_URL"
-          chmod +x ".scripts/${BINARY_NAME}"
-          
-          # 创建符号链接以便使用
-          ln -sf "${BINARY_NAME}" .scripts/dify
-          
-          echo "Dify CLI downloaded successfully"
-          .scripts/dify version
+          # 下载文件并检查是否成功
+          if curl -L -o ".scripts/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+            chmod +x ".scripts/${BINARY_NAME}"
+            
+            # 创建符号链接以便使用
+            ln -sf "${BINARY_NAME}" .scripts/dify
+            
+            echo "Dify CLI downloaded successfully"
+            .scripts/dify version
+          else
+            echo "Failed to download Dify CLI"
+            exit 1
+          fi
 
       - name: Clone OceanBase Plugin Repository
         run: |
