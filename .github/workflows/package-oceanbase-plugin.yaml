@@ -143,11 +143,24 @@ jobs:
           # 在当前仓库中创建oceanbase目录
           mkdir -p oceanbase
           
-          # 复制打包好的插件到oceanbase目录（打包文件在当前目录）
-          cp ${{ env.PLUGIN_NAME }}.difypkg oceanbase/
-          
-          echo "Plugin copied to oceanbase directory"
-          ls -la oceanbase/
+          # 检查打包文件是否存在
+          echo "Checking for packaged file..."
+          if [ -f "${{ env.PLUGIN_NAME }}.difypkg" ]; then
+            echo "Found packaged file: ${{ env.PLUGIN_NAME }}.difypkg"
+            ls -la ${{ env.PLUGIN_NAME }}.difypkg
+            
+            # 复制打包好的插件到oceanbase目录
+            cp ${{ env.PLUGIN_NAME }}.difypkg oceanbase/
+            echo "Plugin copied to oceanbase directory"
+            ls -la oceanbase/
+          else
+            echo "ERROR: Packaged file not found!"
+            echo "Current directory contents:"
+            ls -la
+            echo "Looking for files with .difypkg extension:"
+            find . -name "*.difypkg" -type f
+            exit 1
+          fi
 
       - name: Commit and Push Changes
         run: |
@@ -155,10 +168,27 @@ jobs:
           git config --local user.email "xxsc0529@163.com"
           git config --local user.name "xxsc0529"
           
+          # 显示当前状态
+          echo "Current git status:"
+          git status
+          
+          echo "Checking oceanbase directory:"
+          ls -la oceanbase/
+          
           # 检查是否有变更
           if git diff --quiet; then
             echo "No changes to commit"
+            echo "Checking if oceanbase directory exists and has files:"
+            if [ -d "oceanbase" ] && [ "$(ls -A oceanbase)" ]; then
+              echo "oceanbase directory exists and has files, but git doesn't see changes"
+              echo "This might be because the files are already committed"
+              git status --porcelain
+            else
+              echo "oceanbase directory is empty or doesn't exist"
+              exit 1
+            fi
           else
+            echo "Changes detected, committing..."
             # 添加变更
             git add oceanbase/
             
