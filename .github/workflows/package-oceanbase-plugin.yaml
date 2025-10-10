@@ -175,8 +175,8 @@ jobs:
           echo "Checking oceanbase directory:"
           ls -la oceanbase/
           
-          # 检查是否有变更
-          if git diff --quiet; then
+          # 检查是否有变更（包括未跟踪文件）
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
             echo "No changes to commit"
             echo "Checking if oceanbase directory exists and has files:"
             if [ -d "oceanbase" ] && [ "$(ls -A oceanbase)" ]; then
@@ -188,9 +188,17 @@ jobs:
               exit 1
             fi
           else
-            echo "Changes detected, committing..."
-            # 添加变更
+            echo "Changes or untracked files detected, committing..."
+            
+            # 添加oceanbase目录到git
             git add oceanbase/
+            
+            # 检查是否有文件被添加
+            if git diff --cached --quiet; then
+              echo "No files were staged, checking git status again:"
+              git status
+              exit 1
+            fi
             
             # 提交变更
             git commit -m "feat: update OceanBase plugin package [skip ci]"
