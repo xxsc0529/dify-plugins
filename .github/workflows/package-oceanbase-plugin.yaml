@@ -101,13 +101,15 @@ jobs:
           echo "Packaging plugin..."
           .scripts/dify plugin package temp/${{ env.PLUGIN_NAME }}
           
-          # 检查打包结果
-          if [ -f "temp/${{ env.PLUGIN_NAME }}.difypkg" ]; then
+          # 检查打包结果（打包文件生成在当前目录）
+          if [ -f "${{ env.PLUGIN_NAME }}.difypkg" ]; then
             echo "Plugin packaged successfully!"
-            ls -la temp/*.difypkg
-            echo "Package size: $(du -h temp/*.difypkg | cut -f1)"
+            ls -la *.difypkg
+            echo "Package size: $(du -h *.difypkg | cut -f1)"
           else
             echo "Error: Plugin packaging failed!"
+            echo "Available files in current directory:"
+            ls -la
             echo "Available files in temp directory:"
             ls -la temp/
             exit 1
@@ -118,8 +120,8 @@ jobs:
           # 在当前仓库中创建oceanbase目录
           mkdir -p oceanbase
           
-          # 复制打包好的插件到oceanbase目录
-          cp temp/${{ env.PLUGIN_NAME }}.difypkg oceanbase/
+          # 复制打包好的插件到oceanbase目录（打包文件在当前目录）
+          cp ${{ env.PLUGIN_NAME }}.difypkg oceanbase/
           
           echo "Plugin copied to oceanbase directory"
           ls -la oceanbase/
