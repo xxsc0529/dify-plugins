@@ -96,9 +96,13 @@ jobs:
           # 进入插件目录
           cd temp/${{ env.PLUGIN_NAME }}
           
-          # 使用dify plugin package命令打包插件
+          # 显示当前目录内容
+          echo "Current directory contents:"
+          ls -la
+          
+          # 使用dify plugin package命令打包插件（当前目录就是插件目录）
           echo "Packaging plugin..."
-          ../../.scripts/dify plugin package ./${{ env.PLUGIN_NAME }}
+          ../../.scripts/dify plugin package .
           
           # 检查打包结果
           if [ -f "${{ env.PLUGIN_NAME }}.difypkg" ]; then
@@ -107,6 +111,8 @@ jobs:
             echo "Package size: $(du -h *.difypkg | cut -f1)"
           else
             echo "Error: Plugin packaging failed!"
+            echo "Available files in current directory:"
+            ls -la
             exit 1
           fi
 
