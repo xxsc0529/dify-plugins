@@ -21,6 +21,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -164,7 +165,7 @@ jobs:
             exit 1
           fi
 
-      - name: Commit and Push Changes
+      - name: Commit and Push Changes to Main Branch
         run: |
           # 配置git用户信息
           git config --local user.email "xxsc0529@163.com"
@@ -205,10 +206,10 @@ jobs:
             # 提交变更
             git commit -m "feat: update OceanBase plugin package [skip ci]"
             
-            # 推送到当前分支（测试分支）
-            CURRENT_BRANCH=$(git branch --show-current)
-            git push origin $CURRENT_BRANCH
-            echo "Changes pushed successfully to branch: $CURRENT_BRANCH"
+            # 推送到main分支
+            echo "Pushing changes to main branch..."
+            git push origin HEAD:main
+            echo "Changes pushed successfully to main branch"
           fi
 
       - name: Upload Artifacts
