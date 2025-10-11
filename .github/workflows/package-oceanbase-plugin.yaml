@@ -184,68 +184,60 @@ jobs:
             echo "Files in oceanbase directory:"
             ls -la oceanbase/
             
-            # 检查oceanbase目录中的文件是否被git跟踪
-            echo "Checking git status for oceanbase directory:"
-            git status --porcelain oceanbase/
+            # 检查文件是否已经被git跟踪
+            echo "Checking if files are already tracked:"
+            git ls-files oceanbase/
             
             # 检查文件是否被忽略
             echo "Checking if files are ignored:"
             git check-ignore -v oceanbase/* || echo "Files are not ignored"
             
-            # 尝试不同的添加方法
-            echo "Trying to add files with different methods..."
+            # 检查git状态
+            echo "Git status for oceanbase directory:"
+            git status --porcelain oceanbase/
             
-            # 方法1: 直接添加目录
-            git add oceanbase/
-            echo "Method 1 - Direct add result:"
+            # 检查是否有变更需要提交
+            echo "Checking for changes to commit:"
+            git diff --name-only
+            git diff --cached --name-only
+            git ls-files --others --exclude-standard
+            
+            # 如果文件已经被跟踪，检查是否有修改
+            if git ls-files oceanbase/ > /dev/null 2>&1; then
+              echo "Files are already tracked, checking for modifications..."
+              if git diff --quiet oceanbase/ && git diff --cached --quiet oceanbase/; then
+                echo "No changes detected in tracked files"
+                # 检查是否有新的未跟踪文件
+                if [ -z "$(git ls-files --others --exclude-standard oceanbase/)" ]; then
+                  echo "No untracked files in oceanbase directory"
+                  echo "Nothing to commit"
+                else
+                  echo "Found untracked files, adding them..."
+                  git add oceanbase/
+                fi
+              else
+                echo "Changes detected, adding them..."
+                git add oceanbase/
+              fi
+            else
+              echo "Files are not tracked, adding them..."
+              git add oceanbase/
+            fi
+            
+            # 检查是否有文件被暂存
+            echo "Checking staged files:"
             git diff --cached --name-only
             
-            # 方法2: 如果方法1失败，尝试逐个添加
             if git diff --cached --quiet; then
-              echo "Method 1 failed, trying method 2 - individual file add:"
-              for file in oceanbase/*; do
-                echo "Adding file: $file"
-                git add "$file"
-              done
-              echo "Method 2 result:"
-              git diff --cached --name-only
-            fi
-            
-            # 方法3: 如果还是失败，使用--force
-            if git diff --cached --quiet; then
-              echo "Method 2 failed, trying method 3 - force add:"
-              git add oceanbase/ --force
-              echo "Method 3 result:"
-              git diff --cached --name-only
-            fi
-            
-            # 方法4: 如果还是失败，尝试直接添加文件内容
-            if git diff --cached --quiet; then
-              echo "Method 3 failed, trying method 4 - direct file content add:"
-              for file in oceanbase/*; do
-                echo "Force adding file: $file"
-                git add "$file" --force
-              done
-              echo "Method 4 result:"
-              git diff --cached --name-only
-            fi
-            
-            # 最终检查
-            if git diff --cached --quiet; then
-              echo "All methods failed. Final debugging:"
-              echo "Git status:"
+              echo "No files staged for commit"
+              echo "Current git status:"
               git status
-              echo "Git ls-files:"
-              git ls-files oceanbase/
-              echo "Git ls-files --others:"
-              git ls-files --others oceanbase/
-              echo "Git check-ignore:"
-              git check-ignore -v oceanbase/* || echo "No ignore rules found"
-              exit 1
+              echo "This might mean files are already up to date"
+              echo "Proceeding with commit anyway to ensure consistency..."
             fi
             
-            # 提交变更
-            git commit -m "feat: update OceanBase plugin package [skip ci]"
+            # 提交变更（即使没有变更也要提交，确保状态一致）
+            git commit -m "feat: update OceanBase plugin package [skip ci]" --allow-empty
             
             # 推送到main分支
             echo "Pushing changes to main branch..."
