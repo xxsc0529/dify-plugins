@@ -181,32 +181,45 @@ jobs:
           # 检查oceanbase目录是否存在且有文件
           if [ -d "oceanbase" ] && [ "$(ls -A oceanbase)" ]; then
             echo "oceanbase directory exists and has files"
+            echo "Files in oceanbase directory:"
+            ls -la oceanbase/
             
-            # 检查是否有变更（包括未跟踪文件）
-            if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-              echo "No changes to commit - files are already tracked"
-              git status --porcelain
-            else
-              echo "Changes or untracked files detected, committing..."
+            # 检查oceanbase目录中的文件是否被git跟踪
+            echo "Checking git status for oceanbase directory:"
+            git status --porcelain oceanbase/
+            
+            # 强制添加oceanbase目录中的所有文件
+            echo "Adding oceanbase directory to git..."
+            git add oceanbase/ -f
+            
+            # 检查是否有文件被添加
+            echo "Checking staged files:"
+            git diff --cached --name-only
+            
+            if git diff --cached --quiet; then
+              echo "No files were staged, checking git status again:"
+              git status
+              echo "Trying to add files individually:"
+              for file in oceanbase/*; do
+                echo "Adding file: $file"
+                git add "$file" -f
+              done
               
-              # 添加oceanbase目录到git
-              git add oceanbase/
-              
-              # 检查是否有文件被添加
+              # 再次检查
               if git diff --cached --quiet; then
-                echo "No files were staged, checking git status again:"
-                git status
+                echo "Still no files staged. Checking if files are ignored:"
+                git check-ignore -v oceanbase/*
                 exit 1
               fi
-              
-              # 提交变更
-              git commit -m "feat: update OceanBase plugin package [skip ci]"
-              
-              # 推送到main分支
-              echo "Pushing changes to main branch..."
-              git push origin HEAD:main
-              echo "Changes pushed successfully to main branch"
             fi
+            
+            # 提交变更
+            git commit -m "feat: update OceanBase plugin package [skip ci]"
+            
+            # 推送到main分支
+            echo "Pushing changes to main branch..."
+            git push origin HEAD:main
+            echo "Changes pushed successfully to main branch"
           else
             echo "ERROR: oceanbase directory is empty or doesn't exist"
             echo "Current directory contents:"
