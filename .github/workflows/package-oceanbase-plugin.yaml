@@ -37,6 +37,8 @@ jobs:
           sudo apt-get install -y jq
 
       - name: Download Dify Plugin CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 创建scripts目录
           mkdir -p .scripts
