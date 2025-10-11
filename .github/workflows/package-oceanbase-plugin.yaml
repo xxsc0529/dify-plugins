@@ -241,8 +241,23 @@ jobs:
             
             # 推送到main分支
             echo "Pushing changes to main branch..."
-            git push origin HEAD:main
-            echo "Changes pushed successfully to main branch"
+            
+            # 先获取远程main分支的最新状态
+            echo "Fetching latest main branch..."
+            git fetch origin main
+            
+            # 检查main分支的状态
+            echo "Checking main branch status..."
+            git log --oneline origin/main -5
+            
+            # 尝试推送到main分支，如果失败则使用force push
+            if git push origin HEAD:main; then
+              echo "Changes pushed successfully to main branch"
+            else
+              echo "Normal push failed, trying force push..."
+              git push origin HEAD:main --force
+              echo "Changes force pushed successfully to main branch"
+            fi
           else
             echo "ERROR: oceanbase directory is empty or doesn't exist"
             echo "Current directory contents:"
