@@ -1,18 +1,22 @@
 name: Package OceanBase Plugin
 
 on:
-  workflow_dispatch:  # 允许手动触发
-  push:
-    branches:
-      - test-oceanbase-ci  # 只在测试分支上触发
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: '自定义包名（不含 .difypkg 后缀）'
+        required: false
+        default: 'dify-plugin-oceanbase'
+        type: string
 
 env:
   OCEANBASE_REPO: https://github.com/oceanbase/dify-plugin-oceanbase.git
-  PLUGIN_NAME: dify-plugin-oceanbase
 
 jobs:
   package-oceanbase-plugin:
     runs-on: ubuntu-latest
+    env:
+      PLUGIN_NAME: ${{ github.event.inputs.package_name || 'dify-plugin-oceanbase' }}
     steps:
       - name: Checkout Current Repository
         uses: actions/checkout@v4
@@ -173,7 +177,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: oceanbase-plugin-package
+          name: ${{ env.PLUGIN_NAME }}-package
           path: oceanbase/*.difypkg
           retention-days: 30
 
@@ -190,7 +194,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Status**: Successfully packaged OceanBase plugin" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 **Package Location**: \`oceanbase/dify-plugin-oceanbase.difypkg\`" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Package Location**: \`oceanbase/${{ env.PLUGIN_NAME }}.difypkg\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🌿 **Target Branch**: \`main\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
